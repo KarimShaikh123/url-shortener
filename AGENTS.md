@@ -49,7 +49,7 @@ clicks — one row per click
 
 ## Routing on Vercel (needed by task 3)
 
-- Vercel resolves filesystem first, then `redirects`, then `headers`, then `rewrites` (per Vercel docs — verify live when task 3 deploys). So static files always win over our rewrites: `/index.html`, `/styles.css`, `/js/*`, and (via `cleanUrls`) `/stats` keep working while `/:slug` only catches paths that are not real files — i.e. exactly the slugs.
+- Vercel resolves filesystem first, then `redirects`, then `headers`, then `rewrites` (per Vercel docs, verified live 2026-08-17). So static files always win over our rewrites: `/index.html`, `/styles.css`, `/js/*`, and (via `cleanUrls`) `/stats` keep working while `/:slug` only catches paths that are not real files — i.e. exactly the slugs.
 - Wire the catch-all in `vercel.json`: `"rewrites": [{ "source": "/:slug", "destination": "/api/redirect" }]`.
 - `api/redirect.js` contract (task 3): look up `links` by slug, `INSERT` a row into `clicks`, answer `302` with `Location: <url>`; unknown slug → `404`. Head requests do not count clicks.
 - Gotcha: if a slug ever equals a real path (e.g. a link named `styles.css`), the static file wins — fine for this project, do not "fix" it.
@@ -91,7 +91,7 @@ Living checklist — update the tick in the same commit that completes the task.
 - [x] Task 0 — Scaffold (2026-08-17): repo, AGENTS.md, README, schema.sql, static shell (create form + stats page with mock data), pinned @neondatabase/serverless 1.1.0. Review round (2026-08-17, approved): clicks got identity PK, user-friendly UI copy (short link/destination/opens per day), nav buttons, per-day chips, clickable destination links
 - [x] Task 1 — Provision Neon Postgres + apply schema + probe (2026-08-17): Neon `free_v3` provisioned + connected (DATABASE_URL injected), `npm run db:migrate` applies `db/schema.sql`, round-trip probe green live — insert, redirect lookup, identity ids, total count, daily group-by, FK rejection, indexes, cascade delete. SDK facts pinned above
 - [x] Task 2 — POST /api/create + tests (2026-08-17): `api/create.js` + `test/create.test.js` (8 tests). 5-char slug from `crypto.randomInt` (56^5 ≈ 550M combos), alphabet `[a-km-zA-HJ-NP-Z2-9]` (no 0/O/1/l/I), collision retry ×5 then 500. Contract verified live on production: 200 `{slug, short_url}` (host-derived), 405 on non-POST, 400 on invalid URL or malformed JSON. Note: malformed JSON → clean 400 on production, but `vercel dev` returns a platform 500 (its body-parser throws before the handler). Test rows cleaned up; create page now works live unchanged
-- [ ] Task 3 — Redirect + click recording + tests
+- [x] Task 3 — Redirect + click recording + tests (2026-08-17): `api/redirect.js` + `test/redirect.test.js` (4 tests). `vercel.json` gets `rewrites: [{ "source": "/:slug", "destination": "/api/redirect" }]`; Vercel passes the slug as `req.query.slug` (verified live). GET: look up `links`, INSERT into `clicks` (best-effort — a lost click never breaks the redirect), answer 302 `Location`. HEAD: 302 without counting. Empty/unknown slug → 404, other methods → 405. Verified live: 302+Location, 404, root and `/stats` still served, 2 GETs recorded 2 clicks, HEAD added none, link delete cascades clicks
 - [ ] Task 4 — GET /api/stats + tests
 - [ ] Task 5 — Wire the site to the APIs
 - [ ] Task 6 — Rate limit + security audit + deploy
