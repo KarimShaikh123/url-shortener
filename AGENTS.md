@@ -80,7 +80,7 @@ Living checklist — update the tick in the same commit that completes the task.
 
 - [x] Task 0 — Scaffold (2026-08-17): repo, AGENTS.md, README, schema.sql, static shell (create form + stats page with mock data), pinned @neondatabase/serverless 1.1.0. Review round (2026-08-17, approved): clicks got identity PK, user-friendly UI copy (short link/destination/opens per day), nav buttons, per-day chips, clickable destination links
 - [x] Task 1 — Provision Neon Postgres + apply schema + probe (2026-08-17): Neon `free_v3` provisioned + connected (DATABASE_URL injected), `npm run db:migrate` applies `db/schema.sql`, round-trip probe green live — insert, redirect lookup, identity ids, total count, daily group-by, FK rejection, indexes, cascade delete. SDK facts pinned above
-- [ ] Task 2 — POST /api/create + tests
+- [x] Task 2 — POST /api/create + tests (2026-08-17): `api/create.js` + `test/create.test.js` (8 tests). 5-char slug from `crypto.randomInt` (56^5 ≈ 550M combos), alphabet `[a-km-zA-HJ-NP-Z2-9]` (no 0/O/1/l/I), collision retry ×5 then 500. Contract verified live on production: 200 `{slug, short_url}` (host-derived), 405 on non-POST, 400 on invalid URL or malformed JSON. Note: malformed JSON → clean 400 on production, but `vercel dev` returns a platform 500 (its body-parser throws before the handler). Test rows cleaned up; create page now works live unchanged
 - [ ] Task 3 — Redirect + click recording + tests
 - [ ] Task 4 — GET /api/stats + tests
 - [ ] Task 5 — Wire the site to the APIs
