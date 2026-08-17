@@ -15,7 +15,7 @@
       <header class="site-header">
         <a class="wordmark" href="/" aria-label="Shorten home">Shorten<span>.</span></a>
         <nav class="nav">
-          <a href="/">Create</a>
+          <a class="nav-button" href="/">Create a link</a>
         </nav>
       </header>
 
@@ -24,17 +24,18 @@
         <p class="blurb">Every short link and how many times it has been clicked.</p>
 
         <div class="stat-summary">
-          <p><strong id="stat-links">0</strong> links</p>
-          <p><strong id="stat-clicks">0</strong> total clicks</p>
+          <div class="stat-card"><strong id="stat-links">0</strong><span>links</span></div>
+          <div class="stat-card"><strong id="stat-clicks">0</strong><span>total clicks</span></div>
+          <div class="stat-card"><strong id="stat-week">0</strong><span>clicks this week</span></div>
         </div>
 
         <table class="stats-table">
           <thead>
             <tr>
-              <th>Slug</th>
-              <th>Target</th>
+              <th>Short link</th>
+              <th>Destination</th>
               <th>Total</th>
-              <th>Per day</th>
+              <th>Opens per day</th>
             </tr>
           </thead>
           <tbody id="stats-body"></tbody>

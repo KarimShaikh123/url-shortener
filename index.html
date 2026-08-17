@@ -15,15 +15,17 @@
       <header class="site-header">
         <a class="wordmark" href="/" aria-label="Shorten home">Shorten<span>.</span></a>
         <nav class="nav">
-          <a href="/stats">Stats</a>
+          <a class="nav-button" href="/stats">View stats</a>
         </nav>
       </header>
 
       <main>
-        <h1>Shorten a link<span>.</span></h1>
-        <p class="blurb">Paste a URL, get a short link, and watch its clicks.</p>
+        <section class="hero">
+          <h1>Shorten a link<span>.</span></h1>
+          <p class="blurb">Paste a URL, get a short link, and watch its clicks.</p>
+        </section>
 
-        <section class="panel">
+        <section class="panel create-panel">
           <form id="create-form" class="create-form">
             <label for="input-url">URL to shorten</label>
             <div class="form-row">
@@ -35,6 +37,12 @@
           <p class="result" id="result" hidden>
             Your short link: <a id="short-url" href="#" target="_blank" rel="noopener"></a>
           </p>
+        </section>
+
+        <section class="steps" aria-label="How it works">
+          <div class="step"><span>1</span>Paste a long URL</div>
+          <div class="step"><span>2</span>Get a short link</div>
+          <div class="step"><span>3</span>Watch the clicks stack up</div>
         </section>
       </main>
 

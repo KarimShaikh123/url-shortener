@@ -16,6 +16,7 @@ links — one row per short link
   created_at  TIMESTAMPTZ  default now() — enables newest-first listing
 
 clicks — one row per click
+  id          BIGINT       generated identity — every row's primary key
   slug        TEXT         which link got hit → references links.slug (ON DELETE CASCADE)
   clicked_at  TIMESTAMPTZ  default now() — the per-click timestamp
 ```
@@ -26,7 +27,6 @@ clicks — one row per click
   - daily trend: group clicks by `DATE(clicked_at)`
   - list newest-first: `ORDER BY created_at DESC`
 - Source of truth: `db/schema.sql`. The stats API and page must match this contract.
-- The `clicks` table has no primary key — an open decision for Karim (surrogate `id` column, or none).
 
 ## Commands
 
@@ -68,7 +68,7 @@ clicks — one row per click
 
 Living checklist — update the tick in the same commit that completes the task.
 
-- [x] Task 0 — Scaffold (2026-08-17): repo, AGENTS.md, README, schema.sql, static shell (create form + stats page with mock data), pinned @neondatabase/serverless 1.1.0
+- [x] Task 0 — Scaffold (2026-08-17): repo, AGENTS.md, README, schema.sql, static shell (create form + stats page with mock data), pinned @neondatabase/serverless 1.1.0. Review round (2026-08-17, approved): clicks got identity PK, user-friendly UI copy (short link/destination/opens per day), nav buttons, per-day chips, clickable destination links
 - [ ] Task 1 — Provision Neon Postgres + apply schema + probe
 - [ ] Task 2 — POST /api/create + tests
 - [ ] Task 3 — Redirect + click recording + tests
