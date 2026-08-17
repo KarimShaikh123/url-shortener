@@ -38,7 +38,7 @@ clicks — one row per click
 - Tests: `npm test` (the `test` script is `node --test`, discovers `test/*.test.js`)
 - Apply schema: `npm run db:migrate` (reads `db/schema.sql`, runs statements one at a time against Neon using `DATABASE_URL` from `.env.local`)
 - Deploy: push to `main` (auto), or `npx vercel --prod`
-- Verify a deploy: read the live page content — never a status code alone
+- Verify a deploy: read the live page content — never a status code alone. But **never poll production in a tight loop** — Vercel's attack challenge mode trips (403 + `x-vercel-mitigated: challenge`, body is a challenge page, not the site) and the agent's IP gets blocked for a while (learned 2026-08-17: ~60 curl polls in seconds tripped it). Verify with ONE request; for deploy status use `vercel ls` (API, not edge). Real browsers pass the challenge transparently — if the agent is challenged, ask Karim to eyeball.
 
 ## Neon Postgres (provisioned + verified live 2026-08-17, task 1)
 
