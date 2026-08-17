@@ -37,7 +37,7 @@ clicks — one row per click
 - Syntax check: `node --check <file>` (one file at a time)
 - Tests: `npm test` (the `test` script is `node --test`, discovers `test/*.test.js`)
 - Apply schema: `npm run db:migrate` (reads `db/schema.sql`, runs statements one at a time against Neon using `DATABASE_URL` from `.env.local`)
-- Deploy: push to `main` (auto), or `npx vercel --prod`
+- Deploy: push to `main` (auto), or `npx vercel --prod`. **Auto-deploys can silently fail to trigger** — webhook drops happen (learned 2026-08-17: two consecutive pushes produced zero deployments; the stale alias kept serving the old commit). Before declaring any deploy live, confirm the aliased deployment was actually built from HEAD: `vercel inspect <deployment-url>` → id, then `GET https://api.vercel.com/v13/deployments/<id>` with the token from `~/.local/share/com.vercel.cli/auth.json` → `meta.githubCommitSha`. Mismatch → `vercel --prod` from the repo dir (uploads the working tree, re-aliases in ~13s).
 - Verify a deploy: read the live page content — never a status code alone. But **never poll production in a tight loop** — Vercel's attack challenge mode trips (403 + `x-vercel-mitigated: challenge`, body is a challenge page, not the site) and the agent's IP gets blocked for a while (learned 2026-08-17: ~60 curl polls in seconds tripped it). Verify with ONE request; for deploy status use `vercel ls` (API, not edge). Real browsers pass the challenge transparently — if the agent is challenged, ask Karim to eyeball.
 
 ## Neon Postgres (provisioned + verified live 2026-08-17, task 1)
