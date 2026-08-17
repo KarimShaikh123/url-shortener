@@ -90,7 +90,7 @@ clicks — one row per click
 
 - A 200 status proves a server answered; only content proves it is the right site.
 - When stating a fact (versions, URLs, deploy targets), say what was checked versus assumed.
-- One task, one commit, one review — nothing committed before the owner reviews. From Tier 2 onward: branch + pull request per feature.
+- One task, one commit, one review — nothing committed before the owner reviews.
 - Never background `vercel dev` in a way that loses cwd — it silently falls back to the home dir, creates a stray `~/.vercel` linked to a junk project, and serves 404s. If that happens: delete `~/.vercel`, kill the process, restart from the repo dir (pin cwd inside the backgrounded subshell).
 - Commit identity: Karim Shaikh <karimhshaikh009@gmail.com>.
 - Keep this file and README updated in the same commit as any structural change.
