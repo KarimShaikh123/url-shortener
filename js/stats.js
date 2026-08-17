@@ -16,6 +16,10 @@
     return parseInt(iso.slice(8, 10), 10) + " " + MONTHS[parseInt(iso.slice(5, 7), 10) - 1];
   }
 
+  function karachiDate(date) {
+    return new Date(date.getTime() + 5 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+
   function daysFor(daily) {
     return daily
       .map(function (d) {
@@ -29,20 +33,27 @@
       .join("");
   }
 
-  fetch("./sample-stats.json")
+  var weekStart = karachiDate(new Date(Date.now() - 6 * 24 * 3600 * 1000));
+
+  fetch("/api/stats")
     .then(function (res) {
+      if (!res.ok) throw new Error("stats request failed");
       return res.json();
     })
     .then(function (payload) {
+      if (payload.links.length === 0) {
+        tbody.innerHTML = "<tr><td colspan=\"4\">No stats yet.</td></tr>";
+        return;
+      }
+
       var rows = "";
       var totalClicks = 0;
       var weekClicks = 0;
-      var weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
 
       payload.links.forEach(function (link) {
         totalClicks += link.total;
         link.daily.forEach(function (d) {
-          if (new Date(d.date + "T00:00:00Z").getTime() >= weekAgo) {
+          if (d.date >= weekStart) {
             weekClicks += d.count;
           }
         });
@@ -61,6 +72,6 @@
       weekEl.textContent = weekClicks;
     })
     .catch(function () {
-      tbody.innerHTML = "<tr><td colspan=\"4\">No stats yet.</td></tr>";
+      tbody.innerHTML = "<tr><td colspan=\"4\">Could not load stats. Try again.</td></tr>";
     });
 })();

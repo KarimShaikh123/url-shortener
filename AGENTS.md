@@ -65,7 +65,6 @@ clicks — one row per click
 - `index.html` + `js/create.js` — the create form
 - `stats.html` + `js/stats.js` — the stats page
 - `styles.css` — house tokens
-- `sample-stats.json` — mock data for the shell; task 5 swaps it for the real API
 
 ## Conventions
 
@@ -93,5 +92,5 @@ Living checklist — update the tick in the same commit that completes the task.
 - [x] Task 2 — POST /api/create + tests (2026-08-17): `api/create.js` + `test/create.test.js` (8 tests). 5-char slug from `crypto.randomInt` (56^5 ≈ 550M combos), alphabet `[a-km-zA-HJ-NP-Z2-9]` (no 0/O/1/l/I), collision retry ×5 then 500. Contract verified live on production: 200 `{slug, short_url}` (host-derived), 405 on non-POST, 400 on invalid URL or malformed JSON. Note: malformed JSON → clean 400 on production, but `vercel dev` returns a platform 500 (its body-parser throws before the handler). Test rows cleaned up; create page now works live unchanged
 - [x] Task 3 — Redirect + click recording + tests (2026-08-17): `api/redirect.js` + `test/redirect.test.js` (4 tests). `vercel.json` gets `rewrites: [{ "source": "/:slug", "destination": "/api/redirect" }]`; Vercel passes the slug as `req.query.slug` (verified live). GET: look up `links`, INSERT into `clicks` (best-effort — a lost click never breaks the redirect), answer 302 `Location`. HEAD: 302 without counting. Empty/unknown slug → 404, other methods → 405. Verified live: 302+Location, 404, root and `/stats` still served, 2 GETs recorded 2 clicks, HEAD added none, link delete cascades clicks
 - [x] Task 4 — GET /api/stats + tests (2026-08-17): `api/stats.js` + `test/stats.test.js` (7 tests). Three queries — links newest-first (`ORDER BY created_at DESC, slug` tiebreak), totals (`COUNT(*) GROUP BY slug`), daily buckets (`to_char(clicked_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD')`) — assembled into the `sample-stats.json` shape so task 5 is a one-line fetch swap. `created_at` rendered with explicit `+05:00`; daily dates are bare Karachi calendar dates (Karim's call, 2026-08-17); COUNT strings coerced with `Number()`; zero-click links get `total: 0, daily: []`. Verified: 19/19 tests, Neon probe proved Karachi-midnight bucketing (18:59Z→Aug 16, 19:01Z→Aug 17) + cascade cleanup, `vercel dev` GET shape + POST 405
-- [ ] Task 5 — Wire the site to the APIs
+- [x] Task 5 — Wire the site to the APIs (2026-08-17): `js/stats.js` fetches `/api/stats` instead of the mock; "clicks this week" is now a rolling 7 Karachi days incl. today (string-compare on `YYYY-MM-DD`, no more UTC-midnight parsing); error states split — non-ok response → "Could not load stats. Try again.", zero links → "No stats yet.". `sample-stats.json` deleted (dead after the swap). Create page needed no change (wired since task 2). Verified: DOM-stub probe rendered real payload + both error paths, `vercel dev` serves `/stats` + `/api/stats`
 - [ ] Task 6 — Rate limit + security audit + deploy

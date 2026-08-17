@@ -12,6 +12,5 @@ Stack: static HTML/CSS/JS + Vercel serverless functions + Neon Postgres (`@neond
 | `api/` | serverless functions (create, redirect, stats) |
 | `index.html` / `stats.html` | the create form / the stats page |
 | `styles.css` | house design tokens |
-| `sample-stats.json` | mock stats data, swapped for the real API when wired |
 
 Commands: `npm install` · `npm test` · `npx vercel dev` · push to `main` to deploy.
