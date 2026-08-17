@@ -24,7 +24,7 @@ clicks — one row per click
 - Indexes: `clicks_slug_idx` on `clicks(slug)`, `clicks_clicked_at_idx` on `clicks(clicked_at)`.
 - Totals and daily trends are COMPUTED from `clicks`, never stored:
   - total per link: `SELECT slug, COUNT(*) FROM clicks GROUP BY slug`
-  - daily trend: group clicks by `DATE(clicked_at)`
+  - daily trend: group clicks by Karachi day — `to_char(clicked_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD')`, never bare `DATE(clicked_at)` (session-timezone dependent)
   - list newest-first: `ORDER BY created_at DESC`
 - Source of truth: `db/schema.sql`. The stats API and page must match this contract.
 
