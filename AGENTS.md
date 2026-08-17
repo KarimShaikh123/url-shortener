@@ -5,7 +5,7 @@
 - Plain HTML/CSS/JS frontend (no framework, no build step) + Node serverless functions in `api/` (Vercel auto-detects them). **CommonJS**, matching markdown-blog and lahore-weather.
 - Database: **Neon Postgres** (serverless Postgres — what "Vercel Postgres" became in Q4 2024–Q1 2025; the old `@vercel/postgres` SDK is deprecated). Provisioned via the Vercel Marketplace Neon integration. Runtime dependency: `@neondatabase/serverless` — pinned exactly, version checked from the registry at install, never from memory. Env var `DATABASE_URL` (injected by the integration, mirrored into `.env.local` for dev).
 - Tests: Node's built-in test runner (`node:test`) — no test framework dependency.
-- Formula: GitHub + Vercel + OpenCode. Repo: https://github.com/KarimShaikh123/url-shortener (private). Live: (set at deploy).
+- Formula: GitHub + Vercel + OpenCode. Repo: https://github.com/KarimShaikh123/url-shortener (private). Live: https://url-shortener-gamma-one.vercel.app (auto-deploys on push to `main`; alias of project `personal-e375/url-shortener`).
 
 ## The schema (designed by Karim — do not change without his approval)
 
@@ -31,7 +31,8 @@ clicks — one row per click
 ## Commands
 
 - Install: `npm install`
-- Local dev: `npx vercel dev` (needs populated `.env.local`)
+- Local dev: `npx vercel dev` (needs populated `.env.local`). The Vercel CLI is NOT on PATH in this environment — pin it from the root AGENTS.md: `~/.npm/_npx/69f9afb961c37556/node_modules/.bin/vercel`, or `npx vercel` from the repo dir.
+- Ad-hoc DB scripts/probes: `node --env-file=.env.local -e "..."` (or a temp script) run from the repo dir — reads `DATABASE_URL` from `.env.local`; never embed a connection string in a script.
 - Syntax check: `node --check <file>` (one file at a time)
 - Tests: `npm test` (the `test` script is `node --test`, discovers `test/*.test.js`)
 - Apply schema: `npm run db:migrate` (reads `db/schema.sql`, runs statements one at a time against Neon using `DATABASE_URL` from `.env.local`)
@@ -46,12 +47,20 @@ clicks — one row per click
 - `@neondatabase/serverless@1.1.0` facts (checked the installed package + live probes, not assumed): CommonJS works (`const { neon } = require('@neondatabase/serverless')`); `neon(process.env.DATABASE_URL)` returns a tagged-template function — call as `sql\`...\`` or `sql.query("SELECT ... $1", [param])`; the old `sql("q", [params])` form **throws**. The Neon HTTP endpoint rejects **multiple commands in one call** — `db/migrate.js` splits `schema.sql` on `;` and runs each statement separately (all `IF NOT EXISTS`, so idempotent). **`COUNT(*)` returns a string** — coerce with `Number()` before numeric comparison. `timestamptz` returns a JS `Date`; casting to `::date` parses as local midnight (Asia/Karachi, UTC+5) so `.toISOString()` shifts a day — format dates deliberately in task 4.
 - **Timezone rule (pinned 2026-08-17): every date is Lahore local — `Asia/Karachi`, UTC+5, no DST** (Pakistan observes no DST; same fact lahore-weather verified). Day boundaries are Karachi days, never UTC: task 4 buckets with `clicked_at AT TIME ZONE 'Asia/Karachi'`. Every date the API returns carries an explicit `+05:00` offset in its ISO string, and the stats page labels its timezone so a viewer never has to guess. Stored values stay `timestamptz` (absolute instants); only display/bucketing uses the Lahore view. Foreign key `ON DELETE CASCADE` verified live (deleting a link removes its clicks).
 
+## Routing on Vercel (needed by task 3)
+
+- Vercel resolves filesystem first, then `redirects`, then `headers`, then `rewrites` (per Vercel docs — verify live when task 3 deploys). So static files always win over our rewrites: `/index.html`, `/styles.css`, `/js/*`, and (via `cleanUrls`) `/stats` keep working while `/:slug` only catches paths that are not real files — i.e. exactly the slugs.
+- Wire the catch-all in `vercel.json`: `"rewrites": [{ "source": "/:slug", "destination": "/api/redirect" }]`.
+- `api/redirect.js` contract (task 3): look up `links` by slug, `INSERT` a row into `clicks`, answer `302` with `Location: <url>`; unknown slug → `404`. Head requests do not count clicks.
+- Gotcha: if a slug ever equals a real path (e.g. a link named `styles.css`), the static file wins — fine for this project, do not "fix" it.
+
 ## Files
 
+- `vercel.json` — routing/config: static output, `cleanUrls`, nosniff header, and (task 3) the `/:slug → /api/redirect` rewrite
 - `db/schema.sql` — the schema, source of truth
 - `db/migrate.js` — applies `schema.sql` to Neon (run via `npm run db:migrate`)
 - `api/create.js` — POST /api/create
-- `api/redirect.js` — the 302 + click recording (rewritten from /:slug)
+- `api/redirect.js` — the 302 + click recording (rewritten from /:slug, see Routing section)
 - `api/stats.js` — GET /api/stats
 - `index.html` + `js/create.js` — the create form
 - `stats.html` + `js/stats.js` — the stats page
@@ -70,7 +79,8 @@ clicks — one row per click
 
 - A 200 status proves a server answered; only content proves it is the right site.
 - When stating a fact (versions, URLs, deploy targets), say what was checked versus assumed.
-- One task, one commit, one review; nothing committed before the owner reviews. Branch + PR per feature.
+- One task, one commit, one review — nothing committed before the owner reviews. Commit direct to `main` after in-chat review (Karim, 2026-08-17): no branches, no GitHub PRs; the in-chat diff IS the review artifact.
+- Never background `vercel dev` in a way that loses cwd — it silently falls back to the home dir, creates a stray `~/.vercel` linked to a junk project, and serves 404s. If that happens: delete `~/.vercel`, kill the process, restart from the repo dir (pin cwd inside the backgrounded subshell).
 - Commit identity: Karim Shaikh <karimhshaikh009@gmail.com>.
 - Keep this file and README updated in the same commit as any structural change.
 
