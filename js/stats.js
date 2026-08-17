@@ -53,7 +53,8 @@
       });
       rows +=
         "<tr>" +
-        "<td><code>" + escapeHtml(link.slug) + "</code></td>" +
+        "<td><a class=\"short-link\" href=\"/" + escapeHtml(link.slug) + "\" target=\"_blank\" rel=\"noopener\"><code>" + escapeHtml(link.slug) + "</code></a>" +
+        "<button class=\"copy-button\" data-slug=\"" + escapeHtml(link.slug) + "\">Copy</button></td>" +
         "<td class=\"target\"><a href=\"" + escapeHtml(link.url) + "\" target=\"_blank\" rel=\"noopener\">" + escapeHtml(link.url) + "</a></td>" +
         "<td>" + link.total + "</td>" +
         "<td><div class=\"daily-days\">" + daysFor(link.daily) + "</div></td>" +
@@ -79,10 +80,33 @@
   }
 
   tbody.addEventListener("click", function (event) {
+    var copyButton = event.target.closest(".copy-button");
+    if (copyButton) {
+      var shortUrl = location.origin + "/" + copyButton.getAttribute("data-slug");
+      navigator.clipboard.writeText(shortUrl).then(function () {
+        copyButton.textContent = "Copied";
+        setTimeout(function () {
+          copyButton.textContent = "Copy";
+        }, 1500);
+      }).catch(function () {
+        window.prompt("Copy this link:", shortUrl);
+      });
+      return;
+    }
+
     var button = event.target.closest(".delete-button");
     if (!button) return;
     var slug = button.getAttribute("data-slug");
-    if (!window.confirm("Delete /" + slug + "? Its click history goes with it.")) return;
+
+    if (button.getAttribute("data-armed") !== "true") {
+      button.setAttribute("data-armed", "true");
+      button.textContent = "Sure?";
+      setTimeout(function () {
+        button.setAttribute("data-armed", "false");
+        button.textContent = "Delete";
+      }, 3000);
+      return;
+    }
 
     fetch("/api/delete?slug=" + encodeURIComponent(slug), {
       method: "DELETE",
