@@ -53,9 +53,9 @@
       });
       rows +=
         "<tr>" +
-        "<td><a class=\"short-link\" href=\"/" + escapeHtml(link.slug) + "\" target=\"_blank\" rel=\"noopener\"><code>" + escapeHtml(link.slug) + "</code></a>" +
-        "<button class=\"copy-button\" data-slug=\"" + escapeHtml(link.slug) + "\">Copy</button></td>" +
-        "<td class=\"target\"><a href=\"" + escapeHtml(link.url) + "\" target=\"_blank\" rel=\"noopener\">" + escapeHtml(link.url) + "</a></td>" +
+        "<td><div class=\"slug-cell\"><a class=\"short-link\" href=\"/" + escapeHtml(link.slug) + "\" target=\"_blank\" rel=\"noopener\"><code>" + escapeHtml(link.slug) + "</code></a>" +
+        "<button class=\"copy-button\" data-slug=\"" + escapeHtml(link.slug) + "\">Copy</button></div></td>" +
+        "<td class=\"target\">" + escapeHtml(link.url) + "</td>" +
         "<td>" + link.total + "</td>" +
         "<td><div class=\"daily-days\">" + daysFor(link.daily) + "</div></td>" +
         "<td><button class=\"delete-button\" data-slug=\"" + escapeHtml(link.slug) + "\">Delete</button></td>" +
