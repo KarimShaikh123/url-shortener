@@ -11,7 +11,7 @@ Stack: static HTML/CSS/JS + Vercel serverless functions + Neon Postgres (`@neond
 | File | Purpose |
 |---|---|
 | `db/schema.sql` | the schema |
-| `api/` | serverless functions (create, redirect, stats) |
+| `api/` | serverless functions (create, redirect, stats, delete) |
 | `index.html` / `stats.html` | the create form / the stats page |
 | `js/owner-key.js` | get-or-generate the browser's owner key |
 | `styles.css` | house design tokens |

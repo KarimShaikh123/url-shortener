@@ -35,7 +35,7 @@
 
   function render(payload) {
     if (payload.links.length === 0) {
-      tbody.innerHTML = "<tr><td colspan=\"4\">No stats yet.</td></tr>";
+      tbody.innerHTML = "<tr><td colspan=\"5\">No stats yet.</td></tr>";
       return;
     }
 
@@ -57,6 +57,7 @@
         "<td class=\"target\"><a href=\"" + escapeHtml(link.url) + "\" target=\"_blank\" rel=\"noopener\">" + escapeHtml(link.url) + "</a></td>" +
         "<td>" + link.total + "</td>" +
         "<td><div class=\"daily-days\">" + daysFor(link.daily) + "</div></td>" +
+        "<td><button class=\"delete-button\" data-slug=\"" + escapeHtml(link.slug) + "\">Delete</button></td>" +
         "</tr>";
     });
 
@@ -66,15 +67,37 @@
     weekEl.textContent = weekClicks;
   }
 
-  fetch("/api/stats", {
-    headers: { Authorization: "Bearer " + window.ownerKey }
-  })
-    .then(function (res) {
-      if (!res.ok) throw new Error("stats request failed");
-      return res.json();
+  function loadStats() {
+    return fetch("/api/stats", {
+      headers: { Authorization: "Bearer " + window.ownerKey }
     })
-    .then(render)
-    .catch(function () {
-      tbody.innerHTML = "<tr><td colspan=\"4\">Could not load stats. Try again.</td></tr>";
-    });
+      .then(function (res) {
+        if (!res.ok) throw new Error("stats request failed");
+        return res.json();
+      })
+      .then(render);
+  }
+
+  tbody.addEventListener("click", function (event) {
+    var button = event.target.closest(".delete-button");
+    if (!button) return;
+    var slug = button.getAttribute("data-slug");
+    if (!window.confirm("Delete /" + slug + "? Its click history goes with it.")) return;
+
+    fetch("/api/delete?slug=" + encodeURIComponent(slug), {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + window.ownerKey }
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("delete failed");
+        return loadStats();
+      })
+      .catch(function () {
+        tbody.innerHTML = "<tr><td colspan=\"5\">Could not delete the link. Try again.</td></tr>";
+      });
+  });
+
+  loadStats().catch(function () {
+    tbody.innerHTML = "<tr><td colspan=\"5\">Could not load stats. Try again.</td></tr>";
+  });
 })();
