@@ -2,7 +2,7 @@
 
 A URL shortener with click stats. Paste a link, get a short `/slug`, and every click on the slug is counted. The stats page shows each link's total clicks and a per-day breakdown.
 
-Links belong to the browser that created them: on first visit the browser generates an owner key and keeps it in localStorage — no accounts, no passwords. The stats page shows only your own links.
+Links belong to the browser that created them: on first visit the browser generates an owner key and keeps it in localStorage — no accounts, no passwords. The stats page shows only your own links. Each browser can hold up to 10 links — delete one to add another.
 
 Schema (in `db/schema.sql`): `links(slug, url, created_at, owner)` + `clicks(slug, clicked_at)` — click totals and daily trends are computed from the `clicks` table, never stored.
 

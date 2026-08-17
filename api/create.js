@@ -4,6 +4,9 @@ const { neon } = require("@neondatabase/serverless");
 const SLUG_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const SLUG_LENGTH = 5;
 const MAX_ATTEMPTS = 5;
+const LINK_LIMIT = 10;
+const MAX_URL_LENGTH = 2048;
+const MAX_BODY_LENGTH = 8192;
 
 function isValidUrl(value) {
   if (typeof value !== "string") return false;
@@ -32,6 +35,11 @@ function isUniqueViolation(err) {
   return err && (err.code === "23505" || /duplicate key value/.test(err.message || ""));
 }
 
+async function countOwnerLinks(sql, owner) {
+  const rows = await sql.query("SELECT COUNT(*) AS count FROM links WHERE owner = $1", [owner]);
+  return Number(rows[0].count);
+}
+
 async function createLink(sql, url, owner) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const slug = generateSlug();
@@ -53,10 +61,17 @@ function readJsonBody(req) {
       return;
     }
     let data = "";
+    let oversized = false;
     req.on("data", (chunk) => {
+      if (oversized) return;
       data += chunk;
+      if (data.length > MAX_BODY_LENGTH) oversized = true;
     });
     req.on("end", () => {
+      if (oversized) {
+        resolve({ __oversized: true });
+        return;
+      }
       try {
         resolve(JSON.parse(data || "{}"));
       } catch {
@@ -78,10 +93,18 @@ module.exports = async function handler(req, res) {
     res.status(400).json({ error: "Invalid JSON body" });
     return;
   }
+  if (body.__oversized) {
+    res.status(400).json({ error: "Payload too large" });
+    return;
+  }
 
   const url = body.url;
   if (!isValidUrl(url)) {
     res.status(400).json({ error: "Provide a valid http(s) URL" });
+    return;
+  }
+  if (url.length > MAX_URL_LENGTH) {
+    res.status(400).json({ error: "URL too long (" + MAX_URL_LENGTH + " characters max)" });
     return;
   }
 
@@ -97,6 +120,19 @@ module.exports = async function handler(req, res) {
   }
 
   const sql = neon(process.env.DATABASE_URL);
+
+  let count;
+  try {
+    count = await countOwnerLinks(sql, owner);
+  } catch (err) {
+    res.status(500).json({ error: "Could not save the link" });
+    return;
+  }
+  if (count >= LINK_LIMIT) {
+    res.status(429).json({ error: "Link limit reached (" + LINK_LIMIT + "). Delete one to add another." });
+    return;
+  }
+
   let slug;
   try {
     slug = await createLink(sql, url, owner);
@@ -113,4 +149,8 @@ module.exports.isValidUrl = isValidUrl;
 module.exports.isValidOwnerKey = isValidOwnerKey;
 module.exports.generateSlug = generateSlug;
 module.exports.createLink = createLink;
+module.exports.countOwnerLinks = countOwnerLinks;
 module.exports.isUniqueViolation = isUniqueViolation;
+module.exports.LINK_LIMIT = LINK_LIMIT;
+module.exports.MAX_URL_LENGTH = MAX_URL_LENGTH;
+module.exports.MAX_BODY_LENGTH = MAX_BODY_LENGTH;

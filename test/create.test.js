@@ -98,3 +98,74 @@ test("createLink rethrows non-collision errors", async () => {
   };
   await assert.rejects(() => create.createLink(sql, "https://example.com", OWNER), /connection refused/);
 });
+
+test("countOwnerLinks returns the owner's link count as a number", async () => {
+  const sql = {
+    query: async (query, params) => {
+      assert.match(query, /SELECT COUNT\(\*\) AS count FROM links WHERE owner = \$1/);
+      assert.deepStrictEqual(params, [OWNER]);
+      return [{ count: "7" }];
+    },
+  };
+  assert.strictEqual(await create.countOwnerLinks(sql, OWNER), 7);
+});
+
+test("countOwnerLinks returns 0 for a fresh owner", async () => {
+  const sql = { query: async () => [{ count: "0" }] };
+  assert.strictEqual(await create.countOwnerLinks(sql, OWNER), 0);
+});
+
+test("LINK_LIMIT is 10", () => {
+  assert.strictEqual(create.LINK_LIMIT, 10);
+});
+
+function fakeRes() {
+  const res = {
+    statusCode: null,
+    payload: null,
+    status(code) {
+      res.statusCode = code;
+      return res;
+    },
+    json(payload) {
+      res.payload = payload;
+      return res;
+    },
+  };
+  return res;
+}
+
+test("create handler rejects URLs longer than 2048 characters", async () => {
+  const req = {
+    method: "POST",
+    body: { url: "https://example.com/" + "a".repeat(create.MAX_URL_LENGTH), owner: OWNER },
+  };
+  const res = fakeRes();
+  await create(req, res);
+  assert.strictEqual(res.statusCode, 400);
+  assert.match(res.payload.error, /too long/i);
+});
+
+test("create handler accepts a URL at exactly 2048 characters up to validation", async () => {
+  const req = {
+    method: "POST",
+    body: { url: "https://e.co/" + "a".repeat(create.MAX_URL_LENGTH - 13), owner: OWNER },
+  };
+  const res = fakeRes();
+  await create(req, res);
+  assert.notStrictEqual(res.statusCode, 400);
+});
+
+test("create handler rejects oversized streamed bodies", async () => {
+  const { EventEmitter } = require("node:events");
+  const req = new EventEmitter();
+  req.method = "POST";
+  const res = fakeRes();
+  const done = create(req, res);
+  req.emit("data", JSON.stringify({ url: "https://example.com/", owner: OWNER }).slice(0, 10));
+  req.emit("data", "x".repeat(create.MAX_BODY_LENGTH + 100));
+  req.emit("end");
+  await done;
+  assert.strictEqual(res.statusCode, 400);
+  assert.match(res.payload.error, /too large/i);
+});

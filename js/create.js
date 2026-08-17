@@ -21,7 +21,11 @@
         return res.json();
       })
       .then(function (data) {
-        if (data.error) throw new Error(data.error);
+        if (data.error) {
+          errorEl.textContent = data.error;
+          errorEl.hidden = false;
+          return;
+        }
         var shortUrl = location.origin + "/" + data.slug;
         output.textContent = shortUrl;
         output.setAttribute("href", shortUrl);
