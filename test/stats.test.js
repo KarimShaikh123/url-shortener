@@ -2,6 +2,28 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const stats = require("../api/stats.js");
 
+const OWNER = "c8d1f2a3-9b4e-4c5d-8e6f-0a1b2c3d4e5f";
+
+function fakeReq(header) {
+  return { headers: header === undefined ? {} : { authorization: header } };
+}
+
+test("ownerKey extracts a valid bearer key", () => {
+  assert.strictEqual(stats.ownerKey(fakeReq("Bearer " + OWNER)), OWNER);
+  assert.strictEqual(stats.ownerKey(fakeReq("Bearer " + "a".repeat(32))), "a".repeat(32));
+});
+
+test("ownerKey rejects missing, malformed, or non-hex headers", () => {
+  assert.strictEqual(stats.ownerKey(fakeReq(undefined)), null);
+  assert.strictEqual(stats.ownerKey(fakeReq("")), null);
+  assert.strictEqual(stats.ownerKey(fakeReq(OWNER)), null);
+  assert.strictEqual(stats.ownerKey(fakeReq("Bearer ")), null);
+  assert.strictEqual(stats.ownerKey(fakeReq("Bearer short")), null);
+  assert.strictEqual(stats.ownerKey(fakeReq("Bearer " + "z".repeat(32))), null);
+  assert.strictEqual(stats.ownerKey(fakeReq("Bearer " + "a".repeat(37))), null);
+  assert.strictEqual(stats.ownerKey(fakeReq("Basic " + OWNER)), null);
+});
+
 test("formatKarachi renders a UTC instant as Lahore wall time with +05:00", () => {
   assert.strictEqual(stats.formatKarachi(new Date("2026-08-16T09:00:00Z")), "2026-08-16T14:00:00+05:00");
 });
@@ -68,17 +90,22 @@ test("assembleStats coerces COUNT strings to numbers", () => {
   assert.strictEqual(payload.links[0].daily[0].count, 15);
 });
 
-test("fetchStats buckets clicks by Karachi day in SQL and lists links newest-first", async () => {
+test("fetchStats scopes every query to the owner", async () => {
   const seen = [];
   const sql = {
-    query: async (query) => {
-      seen.push(query);
+    query: async (query, params) => {
+      seen.push({ query, params });
       return [];
     },
   };
-  assert.deepStrictEqual(await stats.fetchStats(sql), { links: [] });
-  assert.ok(seen.some((q) => q.includes("AT TIME ZONE 'Asia/Karachi'")), "daily buckets use Karachi days");
-  assert.ok(seen.some((q) => q.includes("ORDER BY created_at DESC")), "links listed newest-first");
+  assert.deepStrictEqual(await stats.fetchStats(sql, OWNER), { links: [] });
+  assert.strictEqual(seen.length, 3);
+  for (const { query, params } of seen) {
+    assert.deepStrictEqual(params, [OWNER]);
+    assert.match(query, /owner = \$1/);
+  }
+  assert.ok(seen.some(({ query }) => query.includes("AT TIME ZONE 'Asia/Karachi'")), "daily buckets use Karachi days");
+  assert.ok(seen.some(({ query }) => query.includes("ORDER BY created_at DESC")), "links listed newest-first");
 });
 
 test("fetchStats assembles what the database returns", async () => {
@@ -91,7 +118,7 @@ test("fetchStats assembles what the database returns", async () => {
       return [{ slug: "abc12", day: "2026-08-16", count: "2" }];
     },
   };
-  assert.deepStrictEqual(await stats.fetchStats(sql), {
+  assert.deepStrictEqual(await stats.fetchStats(sql, OWNER), {
     links: [
       {
         slug: "abc12",

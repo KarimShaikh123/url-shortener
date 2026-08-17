@@ -16,6 +16,10 @@ function isValidUrl(value) {
   return url.protocol === "http:" || url.protocol === "https:";
 }
 
+function isValidOwnerKey(value) {
+  return typeof value === "string" && value.length >= 32 && value.length <= 36 && /^[0-9a-f-]+$/i.test(value);
+}
+
 function generateSlug() {
   let slug = "";
   for (let i = 0; i < SLUG_LENGTH; i++) {
@@ -28,11 +32,11 @@ function isUniqueViolation(err) {
   return err && (err.code === "23505" || /duplicate key value/.test(err.message || ""));
 }
 
-async function createLink(sql, url) {
+async function createLink(sql, url, owner) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const slug = generateSlug();
     try {
-      await sql.query("INSERT INTO links (slug, url) VALUES ($1, $2)", [slug, url]);
+      await sql.query("INSERT INTO links (slug, url, owner) VALUES ($1, $2, $3)", [slug, url, owner]);
       return slug;
     } catch (err) {
       if (isUniqueViolation(err)) continue;
@@ -81,6 +85,12 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  const owner = body.owner;
+  if (!isValidOwnerKey(owner)) {
+    res.status(400).json({ error: "Provide a valid owner key" });
+    return;
+  }
+
   if (!process.env.DATABASE_URL) {
     res.status(500).json({ error: "Database not configured" });
     return;
@@ -89,7 +99,7 @@ module.exports = async function handler(req, res) {
   const sql = neon(process.env.DATABASE_URL);
   let slug;
   try {
-    slug = await createLink(sql, url);
+    slug = await createLink(sql, url, owner);
   } catch (err) {
     res.status(500).json({ error: "Could not save the link" });
     return;
@@ -100,6 +110,7 @@ module.exports = async function handler(req, res) {
 };
 
 module.exports.isValidUrl = isValidUrl;
+module.exports.isValidOwnerKey = isValidOwnerKey;
 module.exports.generateSlug = generateSlug;
 module.exports.createLink = createLink;
 module.exports.isUniqueViolation = isUniqueViolation;

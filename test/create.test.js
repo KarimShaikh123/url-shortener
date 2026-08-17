@@ -2,6 +2,8 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const create = require("../api/create.js");
 
+const OWNER = "c8d1f2a3-9b4e-4c5d-8e6f-0a1b2c3d4e5f";
+
 test("isValidUrl accepts http and https", () => {
   assert.strictEqual(create.isValidUrl("https://example.com"), true);
   assert.strictEqual(create.isValidUrl("http://example.com/path?q=1"), true);
@@ -16,6 +18,20 @@ test("isValidUrl rejects non-http protocols and junk", () => {
   assert.strictEqual(create.isValidUrl(""), false);
   assert.strictEqual(create.isValidUrl(null), false);
   assert.strictEqual(create.isValidUrl(42), false);
+});
+
+test("isValidOwnerKey accepts uuids and 32-char hex keys", () => {
+  assert.strictEqual(create.isValidOwnerKey(OWNER), true);
+  assert.strictEqual(create.isValidOwnerKey("a".repeat(32)), true);
+});
+
+test("isValidOwnerKey rejects junk", () => {
+  assert.strictEqual(create.isValidOwnerKey(""), false);
+  assert.strictEqual(create.isValidOwnerKey("short"), false);
+  assert.strictEqual(create.isValidOwnerKey("z".repeat(32)), false);
+  assert.strictEqual(create.isValidOwnerKey("a".repeat(37)), false);
+  assert.strictEqual(create.isValidOwnerKey(null), false);
+  assert.strictEqual(create.isValidOwnerKey(42), false);
 });
 
 test("generateSlug returns 5 characters from the alphabet only", () => {
@@ -34,18 +50,19 @@ test("generateSlug is not constant across calls", () => {
   assert.ok(seen.size > 1, "expected varied slugs");
 });
 
-test("createLink returns a slug and inserts the row", async () => {
+test("createLink returns a slug and inserts the row with its owner", async () => {
   let inserted = null;
   const sql = {
     query: async (query, params) => {
-      assert.strictEqual(query, "INSERT INTO links (slug, url) VALUES ($1, $2)");
-      assert.strictEqual(params.length, 2);
+      assert.strictEqual(query, "INSERT INTO links (slug, url, owner) VALUES ($1, $2, $3)");
+      assert.strictEqual(params.length, 3);
       assert.match(params[0], /^[a-km-zA-HJ-NP-Z2-9]{5}$/);
       assert.strictEqual(params[1], "https://example.com");
+      assert.strictEqual(params[2], OWNER);
       inserted = params[0];
     },
   };
-  const slug = await create.createLink(sql, "https://example.com");
+  const slug = await create.createLink(sql, "https://example.com", OWNER);
   assert.strictEqual(slug, inserted);
 });
 
@@ -59,7 +76,7 @@ test("createLink retries on a unique violation", async () => {
       }
     },
   };
-  const slug = await create.createLink(sql, "https://example.com");
+  const slug = await create.createLink(sql, "https://example.com", OWNER);
   assert.strictEqual(attempts, 3);
   assert.match(slug, /^[a-km-zA-HJ-NP-Z2-9]{5}$/);
 });
@@ -70,7 +87,7 @@ test("createLink gives up after MAX_ATTEMPTS collisions", async () => {
       throw { code: "23505", message: "duplicate key value violates unique constraint" };
     },
   };
-  await assert.rejects(() => create.createLink(sql, "https://example.com"), /free slug/);
+  await assert.rejects(() => create.createLink(sql, "https://example.com", OWNER), /free slug/);
 });
 
 test("createLink rethrows non-collision errors", async () => {
@@ -79,5 +96,5 @@ test("createLink rethrows non-collision errors", async () => {
       throw new Error("connection refused");
     },
   };
-  await assert.rejects(() => create.createLink(sql, "https://example.com"), /connection refused/);
+  await assert.rejects(() => create.createLink(sql, "https://example.com", OWNER), /connection refused/);
 });

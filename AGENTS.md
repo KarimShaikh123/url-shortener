@@ -14,6 +14,7 @@ links — one row per short link
   slug        TEXT         primary key — the unique label, what the redirect looks up
   url         TEXT         where it points
   created_at  TIMESTAMPTZ  default now() — enables newest-first listing
+  owner       TEXT         owner key of the browser that created it (NULL on legacy rows)
 
 clicks — one row per click
   id          BIGINT       generated identity — every row's primary key
@@ -21,8 +22,8 @@ clicks — one row per click
   clicked_at  TIMESTAMPTZ  default now() — the per-click timestamp
 ```
 
-- Indexes: `clicks_slug_idx` on `clicks(slug)`, `clicks_clicked_at_idx` on `clicks(clicked_at)`.
-- Totals and daily trends are COMPUTED from `clicks`, never stored:
+- Indexes: `links_owner_idx` on `links(owner)`, `clicks_slug_idx` on `clicks(slug)`, `clicks_clicked_at_idx` on `clicks(clicked_at)`.
+- Totals and daily trends are COMPUTED from `clicks`, never stored, and always scoped to one owner (`WHERE owner = <key>`, totals/daily JOIN through the owner's links):
   - total per link: `SELECT slug, COUNT(*) FROM clicks GROUP BY slug`
   - daily trend: group clicks by Karachi day — `to_char(clicked_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD')`, never bare `DATE(clicked_at)` (session-timezone dependent)
   - list newest-first: `ORDER BY created_at DESC`
@@ -47,6 +48,15 @@ clicks — one row per click
 - `@neondatabase/serverless@1.1.0` facts (checked the installed package + live probes, not assumed): CommonJS works (`const { neon } = require('@neondatabase/serverless')`); `neon(process.env.DATABASE_URL)` returns a tagged-template function — call as `sql\`...\`` or `sql.query("SELECT ... $1", [param])`; the old `sql("q", [params])` form **throws**. The Neon HTTP endpoint rejects **multiple commands in one call** — `db/migrate.js` splits `schema.sql` on `;` and runs each statement separately (all `IF NOT EXISTS`, so idempotent). **`COUNT(*)` returns a string** — coerce with `Number()` before numeric comparison. `timestamptz` returns a JS `Date`; casting to `::date` parses as local midnight (Asia/Karachi, UTC+5) so `.toISOString()` shifts a day — task 4 formats instead: `to_char(clicked_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD')` for buckets, UTC+5 shift + `toISOString` for timestamps.
 - **Timezone rule (pinned 2026-08-17): every date is Lahore local — `Asia/Karachi`, UTC+5, no DST** (Pakistan observes no DST; same fact lahore-weather verified). Day boundaries are Karachi days, never UTC: task 4 buckets with `clicked_at AT TIME ZONE 'Asia/Karachi'`. Every date the API returns carries an explicit `+05:00` offset in its ISO string, and the stats page labels its timezone so a viewer never has to guess. Stored values stay `timestamptz` (absolute instants); only display/bucketing uses the Lahore view. Foreign key `ON DELETE CASCADE` verified live (deleting a link removes its clicks).
 
+## Ownership (task 7, 2026-08-17 — chosen by Karim over a shared password gate and over real accounts)
+
+- Anonymous ownership — no accounts, no passwords, no signup. On first visit the browser generates a key (`crypto.randomUUID()`, fallback 16 random bytes hex), stores it in `localStorage["owner-key"]`, and sends it with every request: `owner` in the `/api/create` body, `Authorization: Bearer <key>` on `/api/stats`.
+- `js/owner-key.js` owns key generation — loaded before `create.js`/`stats.js` on both pages, sets `window.ownerKey`.
+- Key validation (both endpoints): 32–36 chars of `[0-9a-f-]`. Stats with a missing/invalid key → 401; create with a missing/invalid owner → 400.
+- The key IS the identity: whoever holds it sees those links. Clearing localStorage loses the links — no recovery by design at this stage.
+- Legacy rows (created before task 7) have `owner NULL`: they still redirect but appear in no one's stats.
+- Mass-creation abuse is Task 6's rate limit to blunt.
+
 ## Routing on Vercel (needed by task 3)
 
 - Vercel resolves filesystem first, then `redirects`, then `headers`, then `rewrites` (per Vercel docs, verified live 2026-08-17). So static files always win over our rewrites: `/index.html`, `/styles.css`, `/js/*`, and (via `cleanUrls`) `/stats` keep working while `/:slug` only catches paths that are not real files — i.e. exactly the slugs.
@@ -59,11 +69,12 @@ clicks — one row per click
 - `vercel.json` — routing/config: static output, `cleanUrls`, nosniff header, and (task 3) the `/:slug → /api/redirect` rewrite
 - `db/schema.sql` — the schema, source of truth
 - `db/migrate.js` — applies `schema.sql` to Neon (run via `npm run db:migrate`)
-- `api/create.js` — POST /api/create
+- `api/create.js` — POST /api/create (tags the link with the owner key)
 - `api/redirect.js` — the 302 + click recording (rewritten from /:slug, see Routing section)
-- `api/stats.js` — GET /api/stats
+- `api/stats.js` — GET /api/stats (owner-scoped, requires the bearer key)
 - `index.html` + `js/create.js` — the create form
 - `stats.html` + `js/stats.js` — the stats page
+- `js/owner-key.js` — get-or-generate the owner key in localStorage (both pages load it first)
 - `styles.css` — house tokens
 
 ## Conventions
@@ -94,3 +105,4 @@ Living checklist — update the tick in the same commit that completes the task.
 - [x] Task 4 — GET /api/stats + tests (2026-08-17): `api/stats.js` + `test/stats.test.js` (7 tests). Three queries — links newest-first (`ORDER BY created_at DESC, slug` tiebreak), totals (`COUNT(*) GROUP BY slug`), daily buckets (`to_char(clicked_at AT TIME ZONE 'Asia/Karachi', 'YYYY-MM-DD')`) — assembled into the `sample-stats.json` shape so task 5 is a one-line fetch swap. `created_at` rendered with explicit `+05:00`; daily dates are bare Karachi calendar dates (Karim's call, 2026-08-17); COUNT strings coerced with `Number()`; zero-click links get `total: 0, daily: []`. Verified: 19/19 tests, Neon probe proved Karachi-midnight bucketing (18:59Z→Aug 16, 19:01Z→Aug 17) + cascade cleanup, `vercel dev` GET shape + POST 405
 - [x] Task 5 — Wire the site to the APIs (2026-08-17): `js/stats.js` fetches `/api/stats` instead of the mock; "clicks this week" is now a rolling 7 Karachi days incl. today (string-compare on `YYYY-MM-DD`, no more UTC-midnight parsing); error states split — non-ok response → "Could not load stats. Try again.", zero links → "No stats yet.". `sample-stats.json` deleted (dead after the swap). Create page needed no change (wired since task 2). Verified: DOM-stub probe rendered real payload + both error paths, `vercel dev` serves `/stats` + `/api/stats`
 - [ ] Task 6 — Rate limit + security audit + deploy
+- [x] Task 7 — Anonymous ownership (2026-08-17, built before task 6 at Karim's direction): `links.owner` column + `links_owner_idx` (migration applied live); browser generates a uuid key in localStorage (`js/owner-key.js`), create tags the link with it, stats is bearer-key-scoped (401 without). Replaces a shared-password gate built the same day (superseded pre-commit — its only survivor is the bearer-header transport). Verified: 23/23 tests, live Neon probe proved owner isolation (A never sees B's links/clicks; unknown key → empty; NULL-owner legacy rows in no one's stats), `vercel dev` full flow (create 200/400, stats 200/401, redirect + click land in the owner's stats), probe rows cleaned up

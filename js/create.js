@@ -15,7 +15,7 @@
     fetch("/api/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: url })
+      body: JSON.stringify({ url: url, owner: window.ownerKey })
     })
       .then(function (res) {
         return res.json();
