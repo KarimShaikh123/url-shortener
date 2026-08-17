@@ -1,0 +1,23 @@
+{
+  "links": [
+    {
+      "slug": "abc1234",
+      "url": "https://example.com/",
+      "created_at": "2026-08-16T09:00:00+00:00",
+      "total": 38,
+      "daily": [
+        { "date": "2026-08-16", "count": 15 },
+        { "date": "2026-08-15", "count": 23 }
+      ]
+    },
+    {
+      "slug": "x9y2k7q",
+      "url": "https://open-meteo.com/",
+      "created_at": "2026-08-14T14:30:00+00:00",
+      "total": 12,
+      "daily": [
+        { "date": "2026-08-14", "count": 12 }
+      ]
+    }
+  ]
+}

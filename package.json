@@ -1,0 +1,13 @@
+{
+  "name": "url-shortener",
+  "version": "0.1.0",
+  "private": true,
+  "description": "URL shortener with click stats — Vercel + Postgres",
+  "scripts": {
+    "build": "echo no-build",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.1.0"
+  }
+}
