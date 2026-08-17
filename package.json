@@ -5,7 +5,8 @@
   "description": "URL shortener with click stats — Vercel + Postgres",
   "scripts": {
     "build": "echo no-build",
-    "test": "node --test"
+    "test": "node --test",
+    "db:migrate": "node --env-file=.env.local db/migrate.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.1.0"

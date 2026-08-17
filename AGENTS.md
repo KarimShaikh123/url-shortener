@@ -34,12 +34,22 @@ clicks — one row per click
 - Local dev: `npx vercel dev` (needs populated `.env.local`)
 - Syntax check: `node --check <file>` (one file at a time)
 - Tests: `npm test` (the `test` script is `node --test`, discovers `test/*.test.js`)
+- Apply schema: `npm run db:migrate` (reads `db/schema.sql`, runs statements one at a time against Neon using `DATABASE_URL` from `.env.local`)
 - Deploy: push to `main` (auto), or `npx vercel --prod`
 - Verify a deploy: read the live page content — never a status code alone
+
+## Neon Postgres (provisioned + verified live 2026-08-17, task 1)
+
+- Provision: `vercel install neon/neon --plan free_v3 --name url-shortener --json`. Plan slug is **`free_v3`**, not `free` (the CLI rejects `free`). First run prints a terms-acceptance URL and waits for the browser; the store name on Neon's side is `rough-lab-46063816`.
+- Connect to the project (this injects the env vars): `vercel integration-resource connect url-shortener url-shortener --yes`. Pass both the resource name and the project name — `--yes` skips the prompt; the resource resolves by name, not by store id.
+- Env vars injected (all 3 environments, mirrored into `.env.local` via `vercel env pull .env.local`): `DATABASE_URL` (what the SDK reads), `DATABASE_URL_UNPOOLED`, `NEON_PROJECT_ID`, `NEON_AUTH_BASE_URL`, `PG*`/`POSTGRES_*` legacy names. `VERCEL_OIDC_TOKEN` is the short-lived link token — never commit `.env.local`.
+- `@neondatabase/serverless@1.1.0` facts (checked the installed package + live probes, not assumed): CommonJS works (`const { neon } = require('@neondatabase/serverless')`); `neon(process.env.DATABASE_URL)` returns a tagged-template function — call as `sql\`...\`` or `sql.query("SELECT ... $1", [param])`; the old `sql("q", [params])` form **throws**. The Neon HTTP endpoint rejects **multiple commands in one call** — `db/migrate.js` splits `schema.sql` on `;` and runs each statement separately (all `IF NOT EXISTS`, so idempotent). **`COUNT(*)` returns a string** — coerce with `Number()` before numeric comparison. `timestamptz` returns a JS `Date`; casting to `::date` parses as local midnight (Asia/Karachi, UTC+5) so `.toISOString()` shifts a day — format dates deliberately in task 4.
+- **Timezone rule (pinned 2026-08-17): every date is Lahore local — `Asia/Karachi`, UTC+5, no DST** (Pakistan observes no DST; same fact lahore-weather verified). Day boundaries are Karachi days, never UTC: task 4 buckets with `clicked_at AT TIME ZONE 'Asia/Karachi'`. Every date the API returns carries an explicit `+05:00` offset in its ISO string, and the stats page labels its timezone so a viewer never has to guess. Stored values stay `timestamptz` (absolute instants); only display/bucketing uses the Lahore view. Foreign key `ON DELETE CASCADE` verified live (deleting a link removes its clicks).
 
 ## Files
 
 - `db/schema.sql` — the schema, source of truth
+- `db/migrate.js` — applies `schema.sql` to Neon (run via `npm run db:migrate`)
 - `api/create.js` — POST /api/create
 - `api/redirect.js` — the 302 + click recording (rewritten from /:slug)
 - `api/stats.js` — GET /api/stats
@@ -69,7 +79,7 @@ clicks — one row per click
 Living checklist — update the tick in the same commit that completes the task.
 
 - [x] Task 0 — Scaffold (2026-08-17): repo, AGENTS.md, README, schema.sql, static shell (create form + stats page with mock data), pinned @neondatabase/serverless 1.1.0. Review round (2026-08-17, approved): clicks got identity PK, user-friendly UI copy (short link/destination/opens per day), nav buttons, per-day chips, clickable destination links
-- [ ] Task 1 — Provision Neon Postgres + apply schema + probe
+- [x] Task 1 — Provision Neon Postgres + apply schema + probe (2026-08-17): Neon `free_v3` provisioned + connected (DATABASE_URL injected), `npm run db:migrate` applies `db/schema.sql`, round-trip probe green live — insert, redirect lookup, identity ids, total count, daily group-by, FK rejection, indexes, cascade delete. SDK facts pinned above
 - [ ] Task 2 — POST /api/create + tests
 - [ ] Task 3 — Redirect + click recording + tests
 - [ ] Task 4 — GET /api/stats + tests

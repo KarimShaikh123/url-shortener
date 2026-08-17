@@ -72,6 +72,8 @@ h1 span { color: var(--coral); }
 
 footer { padding: 24px 0 56px; border-top: 1px solid var(--line); font: 500 11px/1.2 "DM Mono", monospace; text-transform: uppercase; letter-spacing: 0.055em; color: var(--ink-faint); }
 
+.tz-note { margin: 14px 0 0; font: 500 10px/1.2 "DM Mono", monospace; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+
 @media (max-width: 640px) {
   .form-row { flex-direction: column; }
   h1, .hero h1 { font-size: 34px; }
